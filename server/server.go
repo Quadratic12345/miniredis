@@ -1,79 +1,113 @@
 package main
+
 import (
-	"bufio";"fmt";"net";"strings"
+	"bufio"
+	"fmt"
+	"net"
+	"strings"
 )
-type Server struct{
+
+type Server struct {
 	store *Store
 }
-func NewServer(store *Store) *Server{
+
+func NewServer(store *Store) *Server {
 	return &Server{
 		store: store,
 	}
 }
-func (s *Server) Start() error{
-	ln,err :=net.Listen("tcp",":9999")
-	if err !=nil{
+
+func (s *Server) Start() error {
+	ln, err := net.Listen("tcp", ":9999")
+	if err != nil {
 		return err
 	}
+
 	defer ln.Close()
-	fmt.Println("it is listening on :9999")
+
+	fmt.Println("Mini Redis listening on :9999")
+
 	for {
-		conn,err:=ln.Accept()
-		if err !=nil{
-			fmt.Println("Accept error:",err)
+		conn, err := ln.Accept()
+		if err != nil {
+			fmt.Println("Accept error:", err)
 			continue
 		}
+
 		go s.handleConnection(conn)
 	}
 }
-func (s *Server) handleConnection(conn net.Conn){
+
+func (s *Server) handleConnection(conn net.Conn) {
 	defer conn.Close()
-	fmt.Println("Client is connected",conn.RemoteAddr())
-	scanner:=bufio.NewScanner(conn)
-	for scanner.Scan(){
-		comand:=scanner.Text()
-		response:=s.handleCommand(command)
-		fmt.Fprintln(conn.response)
+
+	fmt.Println("Client connected:", conn.RemoteAddr())
+
+	scanner := bufio.NewScanner(conn)
+
+	for scanner.Scan() {
+		command := scanner.Text()
+
+		response := s.handleCommand(command)
+
+		fmt.Fprintln(conn, response)
 	}
-	fmt.Println("Client is disconnected",conn.RemoteAddr())
+
+	fmt.Println("Client disconnected:", conn.RemoteAddr())
 }
-func (s *Server) handleComand(comand string) string{
-	parts:=strings.Fields(command)
-	if len(parts)==0{
-		return "error empty command"
+
+func (s *Server) handleCommand(command string) string {
+	parts := strings.Fields(command)
+
+	if len(parts) == 0 {
+		return "ERR empty command"
 	}
-	switch strings.ToUpper(parts[0]){
+
+	switch strings.ToUpper(parts[0]) {
+
 	case "SET":
-		if len(parts)<3{
-			return "error usage set key value"
+		if len(parts) < 3 {
+			return "ERR usage: SET key value"
 		}
-		key :=parts[1]
-		value:=strings.Join(parts[2:],"")
-		s.store.Set(key,value)
+
+		key := parts[1]
+		value := strings.Join(parts[2:], " ")
+
+		s.store.Set(key, value)
+
 		return "OK"
+
 	case "GET":
-		if len(parts) !=2{
-			return "error usage get key"
+		if len(parts) != 2 {
+			return "ERR usage: GET key"
 		}
-		key :=parts[1]
-		value,exists :=s.store.Get(key)
-		if !exists{
+
+		key := parts[1]
+
+		value, exists := s.store.Get(key)
+
+		if !exists {
 			return "(nil)"
 		}
+
 		return value
+
 	case "DEL":
-		if len(parts) !=2{
-			return "error usage del key"
+		if len(parts) != 2 {
+			return "ERR usage: DEL key"
 		}
-		key :=parts[1]
-		deleted :=s.store.Delete(key)
-		if deleted{
+
+		key := parts[1]
+
+		deleted := s.store.Delete(key)
+
+		if deleted {
 			return "1"
 		}
+
 		return "0"
 
 	default:
-		return "error command not known"
-
+		return "ERR unknown command"
 	}
 }
